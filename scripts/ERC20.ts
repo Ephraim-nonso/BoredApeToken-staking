@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 
 // Addresses for the contract testing.
 const deployerAddress = "0xf18be8A5FcBD320fDe04843954c1c1A155b9Ae2b";
-const BoredNFT = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
+const BoredNFTHolder = "0xbe13cdad7df8bd3c7f481b78ddb09314313c33e3";
 
 async function ERC() {
   const signer = await ethers.getSigner(deployerAddress);
@@ -31,11 +31,12 @@ async function ERC() {
   console.log(await (await erc).balanceOf(deployerAddress));
 
   // Transfer the token to the BoredNFT.
-  console.log(await (await erc).transfer(BoredNFT, 400000));
+  await (await erc).transfer(BoredNFTHolder, 400000);
   console.log(await (await erc).address);
 
-  const bal = await (await erc).balanceOf(BoredNFT);
+  const bal = await (await erc).balanceOf(BoredNFTHolder);
   console.log(bal);
+  console.log(await (await erc).balanceOf(deployerAddress));
 }
 
 ERC().catch((error) => {
