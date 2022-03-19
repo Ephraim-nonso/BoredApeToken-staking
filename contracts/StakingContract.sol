@@ -3,8 +3,10 @@
 pragma solidity 0.8.4;
 import "./interfaces/IERC721.sol";
 import "./BRTToken.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract StakingContract {
+    using SafeMath for uint256;
     // Address generated after the deployment of token contract.
     IERC20 private token;
     IERC721 private apeNFT;
@@ -13,7 +15,7 @@ contract StakingContract {
     struct Staking {
         bool success;
         uint256 stake;
-        uint256 earn;
+        uint256 reward;
         uint256 timeStart;
         uint256 timeDue;
         uint256 balance;
@@ -29,18 +31,19 @@ contract StakingContract {
     }
 
     function stake(uint256 stake) external returns (bool success) {
+        // Ensure that input equals the token decimals.
+        stake = stake.mul((10**18));
         require(apeNFT.balanceOf(msg.sender) > 1, "No BoredApe NFT");
         require(token.balanceOf(msg.sender) >= stake, "Insufficient funds");
 
-        _balances[msg.sender] = _balances[msg.sender] - stake;
         token.transfer(address(this), stake);
-
         // Takes not of the decimals
         Staking storage s = stakings[msg.sender];
         s.stake = stake;
         s.timeStart = block.timestamp;
-        s.timeDue = block.timestamp + 3 days;
+        s.timeDue = (block.timestamp).add(259200);
         s.earn = reward(stake);
+        s.balance = s.stake + s.earn;
 
         // Update state vaariables.
         s.success = true;
@@ -51,27 +54,35 @@ contract StakingContract {
     }
 
     function reward(uint256 stake) internal returns (uint256 reward) {
-        stake = stake * (10**18);
-        uint256 monthlyRate = ((stake * 10) / 100);
-        uint256 dailyRate = monthlyRate / 30;
-        reward = dailyRate;
+        Staking memory s = stakings[msg.sender];
+        stake = stake.mul((10**18));
+        uint256 monthlyRate = ((stake.mul(10)).div(100));
+        uint256 dailyRate = monthlyRate.div(30);
+        require(s.earn > 0, "No record.");
+        if ((block.timestamp >= (s.timeDue + 86400)) && (s.stake != 0)) {
+            return dailyRate.mul(3) + dailyRate;
+        }
+        if (block.timestamp >= s.timeDue && s.stake != 0) {
+            return dailyRate.mul(3);
+        } else {
+            return 0;
+        }
     }
 
-    function withdrawReward(uint256 _amount) external returns (uint256 reward) {
+    function withdrawReward(uint256 _amount) external returns (bool suc) {
         Staking memory s = stakings[msg.sender];
+
+        // Ensure that amount to withdraw isn't more than rewards.
         require(_amount <= s.earn, "amount exceeds rewards.");
-        // Get the reward.
-        uint256 earn = s.earn;
-        uint256 bal = _balances[address(this)];
-        uint256 balOwner = _balances[address(this)];
-
-        // Do the maths.
-        _balances[address(this)] = bal - earn;
-        _balances[msg.sender] = balOwner + earn;
-
+        s.balance = s.balance.sub(s.earn);
+        s.balance = s.stake;
+        if (s.stake != 0) {
+            uint256 newReward = reward(s.stake);
+            s.balance = s.stake.add(newReward);
+        }
         // Transfer from contract to staker.
-        address(this).transfer(msg.sender, earn);
-        reward = s.earn;
+        uint256 done = address(this).transfer(msg.sender, s.earn);
+        reward = done;
         emit Withdraw(msg.sender, block.timestamp, earn);
     }
 
@@ -80,16 +91,16 @@ contract StakingContract {
         require(block.timestamp > s.timeDue, "Not up to 3 days.");
 
         // Get the total of stake and earning.
-        uint256 earning = s.earn;
-        uint256 totalAmount = s.stake + earning;
-        uint256 bal = _balances[address(this)];
-        uint256 balOwner = _balances[address(this)];
+        // uint256 earning = s.earn;
+        // uint256 totalAmount = s.stake + earning;
+        // uint256 bal = _balances[address(this)];
+        // uint256 balOwner = _balances[address(this)];
 
-        // Do the maths.
-        _balances[address(this)] = bal - totalAmount;
-        _balances[msg.sender] = balOwner + totalAmount;
+        // // Do the maths.
+        // _balances[address(this)] = bal - totalAmount;
+        // _balances[msg.sender] = balOwner + totalAmount;
 
-        // Transfer from contract to staker.
+        // // Transfer from contract to staker.
         address(this).transfer(msg.sender, totalAmount);
         emit Withdraw(msg.sender, block.timestamp, totalAmount);
     }
