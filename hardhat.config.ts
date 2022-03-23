@@ -25,6 +25,11 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const config: HardhatUserConfig = {
   solidity: "0.8.4",
   networks: {
+    hardhat: {
+      forking: {
+        url: "https://speedy-nodes-nyc.moralis.io/cd38a1bba9d69a2115198ff0/eth/mainnet",
+      },
+    },
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
       accounts:
@@ -43,6 +48,11 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  paths: {
+    sources: "./contracts",
+
+    artifacts: "./frontend/frontend/artifacts",
   },
 };
 
