@@ -52,7 +52,7 @@ const config: HardhatUserConfig = {
   paths: {
     sources: "./contracts",
 
-    artifacts: "./frontend/frontend/artifacts",
+    artifacts: ".artifacts",
   },
 };
 
