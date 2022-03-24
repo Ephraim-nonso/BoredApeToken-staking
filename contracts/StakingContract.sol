@@ -36,7 +36,8 @@ contract StakingContract {
         require(apeNFT.balanceOf(msg.sender) >= 1, "No BoredApe NFT");
         require(token.balanceOf(msg.sender) >= stake_, "Insufficient funds");
         token.transferFrom(msg.sender, address(this), stake_);
-        // Takes not of the decimals
+
+        // Records the input into the struct.
         Staking storage s = stakings[msg.sender];
         s.stake = stake_;
         s.timeStart = block.timestamp;
@@ -58,50 +59,39 @@ contract StakingContract {
         uint256 monthlyRate = ((stake_.mul(10)).div(100));
         uint256 dailyRate = monthlyRate.div(30);
         require(stake_ > 0, "No record.");
-
         require(stake_ > 0, "Invalid stake passed.");
         if ((block.timestamp >= s.timeDue) && (s.stake != 0)) {
+            if ((block.timestamp >= (s.timeDue + 86400)) && (s.stake != 0)) {
+                return dailyRate.mul(3) + dailyRate;
+            }
             return reward_ = dailyRate.mul(3);
-        } else if ((block.timestamp >= (s.timeDue + 86400)) && (s.stake != 0)) {
-            return dailyRate.mul(3) + dailyRate;
         } else {
             return 0;
         }
     }
 
-    // function withdrawReward(uint256 _amount) external returns (bool suc) {
-    //     Staking memory s = stakings[msg.sender];
+    function withdrawReward(uint256 _amount) external returns (bool success) {
+        Staking memory s = stakings[msg.sender];
 
-    //     // Ensure that amount to withdraw isn't more than rewards.
-    //     require(_amount <= s.earn, "amount exceeds rewards.");
-    //     s.balance = s.balance.sub(s.earn);
-    //     s.balance = s.stake;
-    //     if (s.stake != 0) {
-    //         uint256 newReward = reward(s.stake);
-    //         s.balance = s.stake.add(newReward);
-    //     }
-    //     // Transfer from contract to staker.
-    //     uint256 done = address(this).transfer(msg.sender, s.earn);
-    //     reward = done;
-    //     emit Withdraw(msg.sender, block.timestamp, earn);
-    // }
+        // Ensure that amount to withdraw isn't more than rewards.
+        require(_amount <= s.reward, "amount exceeds rewards.");
+        s.reward = s.reward.sub(_amount);
+        s.balance = s.balance.sub(_amount);
+        s.balance = s.stake;
+        if (s.stake != 0) {
+            s.reward = reward(s.stake);
+            s.balance = s.stake.add(s.reward);
+        }
+        emit Withdraw(msg.sender, block.timestamp, s.reward);
+        // Transfer from contract to staker.
+        success = token.transfer(msg.sender, s.reward);
+    }
 
-    // function withdrawAllInPool() external returns (bool) {
-    //     Staking memory s = stakings[msg.sender];
-    //     require(block.timestamp > s.timeDue, "Not up to 3 days.");
-
-    //     // Get the total of stake and earning.
-    //     // uint256 earning = s.earn;
-    //     // uint256 totalAmount = s.stake + earning;
-    //     // uint256 bal = _balances[address(this)];
-    //     // uint256 balOwner = _balances[address(this)];
-
-    //     // // Do the maths.
-    //     // _balances[address(this)] = bal - totalAmount;
-    //     // _balances[msg.sender] = balOwner + totalAmount;
-
-    //     // // Transfer from contract to staker.
-    //     address(this).transfer(msg.sender, totalAmount);
-    //     emit Withdraw(msg.sender, block.timestamp, totalAmount);
-    // }
+    function withdrawAllInPool() external returns (bool) {
+        Staking memory s = stakings[msg.sender];
+        require(block.timestamp > s.timeDue, "Not up to 3 days.");
+        // // Transfer from contract to staker.
+        emit Withdraw(msg.sender, block.timestamp, s.balance);
+        return token.transfer(msg.sender, s.balance);
+    }
 }
