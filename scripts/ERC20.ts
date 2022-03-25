@@ -1,11 +1,10 @@
-import { BigNumber, Signer } from "ethers";
 import { ethers } from "hardhat";
 
 // Addresses for the contract testing.
 const deployerAddress = "0xf18be8A5FcBD320fDe04843954c1c1A155b9Ae2b";
 
 // Ape ERC721 Contract
-const ApeContract = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
+const APECONTRACT = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
 const BoredNFTHolder = "0xbe13cdad7df8bd3c7f481b78ddb09314313c33e3";
 
 async function prank(address: string) {
@@ -30,17 +29,35 @@ async function ERC() {
   await setBal(deployerAddress);
 
   // Deployment of token to derive contract address.
-  const ERC = await ethers.getContractFactory("BRT");
-  const erc = ERC.connect(signer).deploy("Bored Ape Token", "BRT");
-  await (await erc).deployed();
-  console.log("The Token address:", (await erc).address);
+  const ERC20Token = await ethers.getContractFactory("BRT");
+  const ercToken = await ERC20Token.connect(signer).deploy(
+    "Bored Ape Token",
+    "BRT"
+  );
+  await ercToken.deployed();
+  console.log("The Token address:", ercToken.address);
 
-  console.log(await (await erc).balanceOf(deployerAddress));
+  // Deployment of the staking contract.
+  const Staking = await ethers.getContractFactory("StakingContract");
+  const getStaking = await Staking.connect(signer).deploy(
+    ercToken.address,
+    APECONTRACT
+  );
+  await getStaking.deployed();
+  console.log("The Staking Contract address:", getStaking.address);
 
   // Check the number of Ape an holder possesses.
-  const getBoredApe = await ethers.getContractAt("IERC721", ApeContract);
-
+  const getBoredApe = await ethers.getContractAt("IERC721", APECONTRACT);
   console.log(await getBoredApe.balanceOf(BoredNFTHolder));
+
+  // Check balance of token for deployer
+  console.log(await ercToken.balanceOf(deployerAddress));
+
+  // Transfer Token to holder of Bored Ape NFT
+  await ercToken.transfer(BoredNFTHolder, "2000000000000000000");
+
+  // Check balance of BoredNFTHolder
+  console.log(await ercToken.balanceOf(BoredNFTHolder));
 }
 
 ERC().catch((error) => {

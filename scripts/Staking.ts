@@ -1,10 +1,15 @@
 import { ethers } from "hardhat";
 
+// The Token Deployer and contract Address.
+const TOKENCONTRACT = "0x7f9a1fF287fD5F1319C098eb79ecb8c9c446f322";
 const deployerAddress = "0xf18be8A5FcBD320fDe04843954c1c1A155b9Ae2b";
-const tokenAddress = "0x1f312127D84fdcC5Cf224ed5A682aD9fD98ABF28";
 
 // Ape Contract.
-const ApeContract = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
+const APECONTRACT = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
+const BOREDAPEHOLDER = "0xbe13cdad7df8bd3c7f481b78ddb09314313c33e3";
+
+// The Staking Address.
+const STAKINGCONTRACT = "0x9472B9A4FeE3206a817767afB1A0D6Bdd66A910a";
 
 async function prank(address: string) {
   //@ts-ignore
@@ -23,22 +28,26 @@ async function setBal(address: string) {
 }
 
 async function Staking() {
-  const signer = await ethers.getSigner(deployerAddress);
-  await prank(deployerAddress);
-  await setBal(deployerAddress);
+  // Get The Staking Contract
+  const GetStaking = await ethers.getContractAt(
+    "StakingContract",
+    STAKINGCONTRACT
+  );
 
-  const getToken = await ethers.getContractAt("IERC20", tokenAddress);
-  console.log(await getToken.balanceOf(deployerAddress));
+  // Get Token Contract.
+  const GetToken = await ethers.getContractAt("IERC20", TOKENCONTRACT);
 
-  //   const StakingContract = await ethers.getContractFactory("StakingContract");
-  //   const stake = StakingContract.deploy(tokenAddress, ApeContract);
+  await prank(BOREDAPEHOLDER);
+  const signer = await ethers.getSigner(BOREDAPEHOLDER);
 
-  //   await (await stake).deployed();
+  // Approve contract the token.
+  await GetToken.connect(signer).approve(STAKINGCONTRACT, "100000");
 
-  //   console.log("Deployed stake contract is:", (await stake).address);
+  console.log(await GetToken.allowance(BOREDAPEHOLDER, STAKINGCONTRACT));
+  // Stake
+  // await GetStaking.connect(signer).stake("100000");
 
-  //   const val = await (await stake).stake(5);
-  //   console.log(val);
+  console.log(await GetStaking.connect(signer).getContractBalance());
 }
 
 Staking().catch((error) => {
