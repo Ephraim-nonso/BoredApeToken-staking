@@ -15,11 +15,9 @@ contract StakingContract {
     // Staking for records.
     struct Staking {
         bool success;
-        bool updateStake;
+        bool autoUpdateStake;
         uint256 stake;
-        uint256 reward;
-        uint256 timeStart;
-        uint256 timeDue;
+        uint256 timeStaked;
     }
 
     mapping(address => Staking) public stakings;
@@ -35,23 +33,18 @@ contract StakingContract {
     /**
      * @dev Returns success on staking successfully.
      */
-    function stake(uint256 stake_) public returns (bool success) {
+    function stake(uint256 stake_) public returns (uint256 reward) {
         // require(apeNFT.balanceOf(msg.sender) >= 1, "No BoredApe NFT");
         require(token.balanceOf(msg.sender) >= stake_, "Insufficient funds");
         token.transferFrom(msg.sender, address(this), stake_);
-        uint256 rewardFromDeposit = calculateReward(stake_);
         // Records the input into the struct.
         Staking storage s = stakings[msg.sender];
         s.stake = s.stake.add(stake_);
-        s.timeStart = block.timestamp;
-        s.timeDue = (block.timestamp).add(259200);
-        s.reward = s.reward.add(rewardFromDeposit);
+        s.timeStaked = block.timestamp;
+        s.success = true;
+        reward = calculateReward(stake_);
 
         // Update state variable for successful stake.
-        s.success = true;
-
-        // return success on function call.
-        success = s.success;
         emit Deposit(msg.sender, block.timestamp, stake_);
     }
 
@@ -79,8 +72,8 @@ contract StakingContract {
         returns (uint256 daysSpent, bool condition)
     {
         Staking storage s = stakings[msg.sender];
-        daysSpent = block.timestamp - s.timeStart;
-        if ((block.timestamp >= s.timeDue) && (s.stake != 0)) {
+        daysSpent = block.timestamp - s.timeStaked;
+        if ((block.timestamp >= (s.timeStaked + 259200)) && (s.stake != 0)) {
             return (daysSpent, true);
         } else {
             return (daysSpent, false);
@@ -93,15 +86,16 @@ contract StakingContract {
     function withdrawRewardFromBalance(uint256 _amount) external {
         (uint256 daysSpent, bool pass) = checkTimeForClaim();
         Staking storage s = stakings[msg.sender];
-        s.reward = s.reward * daysSpent;
+        uint256 reward = stake(s.stake);
+        reward = reward * daysSpent;
         // Ensure that amount to withdraw is not more than rewards.
-        require(_amount <= s.reward, "Amount exceeds reward.");
+        require(_amount <= reward, "Amount exceeds reward.");
         require(pass, "Not up to valid date.");
-        s.reward = s.reward.sub(_amount);
+        reward = reward.sub(_amount);
         s.stake = s.stake.sub(_amount);
 
-        if (s.updateStake == true) {
-            s.reward = updateStake(s.stake);
+        if (s.autoUpdateStake == true) {
+            reward = updateStake(s.stake);
         }
         // Transfer from contract to staker.
         token.transfer(msg.sender, _amount);
@@ -112,31 +106,28 @@ contract StakingContract {
     function withdrawAllInPool() external {
         (, bool pass) = checkTimeForClaim();
         Staking storage s = stakings[msg.sender];
-        require(block.timestamp > s.timeDue, "Not up to 3 days.");
+        uint256 reward = stake(s.stake);
+        require(block.timestamp > (s.timeStaked + 259200), "Not up to 3 days.");
         require(s.success == true, "Not a staker.");
         require(pass, "Not up to valid date.");
-        s.stake = s.stake + s.reward;
+        s.stake = s.stake + reward;
         token.transfer(msg.sender, s.stake);
         s.success = false;
 
         s.stake = 0;
-        s.reward = 0;
-        s.timeStart = 0;
-        s.timeDue = 0;
-
+        s.timeStaked = 0;
         emit Withdraw(msg.sender, block.timestamp, s.stake);
     }
 
     function allowAutoUpdateStake() external {
         Staking storage autoUpdate = stakings[msg.sender];
-        autoUpdate.updateStake = !autoUpdate.updateStake;
+        autoUpdate.autoUpdateStake = !autoUpdate.autoUpdateStake;
     }
 
     function updateStake(uint256 _newStake) internal returns (uint256 val) {
         Staking storage s = stakings[msg.sender];
         _newStake = s.stake;
-        s.timeStart = block.timestamp;
-        s.timeDue = (block.timestamp).add(259200);
+        s.timeStaked = block.timestamp;
         uint256 newReward = calculateReward(_newStake);
         val = newReward;
     }
