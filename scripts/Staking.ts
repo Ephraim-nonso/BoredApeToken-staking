@@ -37,15 +37,15 @@ async function Staking() {
   // Get Token Contract.
   const GetToken = await ethers.getContractAt("IERC20", TOKENCONTRACT);
 
-  await prank(BOREDAPEHOLDER);
   const signer = await ethers.getSigner(BOREDAPEHOLDER);
+  await prank(BOREDAPEHOLDER);
 
   // Approve contract the token.
   await GetToken.connect(signer).approve(STAKINGCONTRACT, "100000");
 
   console.log(await GetToken.allowance(BOREDAPEHOLDER, STAKINGCONTRACT));
   // Stake
-  // await GetStaking.connect(signer).stake("100000");
+  await GetStaking.connect(signer).stake("100000");
 
   console.log(await GetStaking.connect(signer).getContractBalance());
 }

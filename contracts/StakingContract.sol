@@ -15,6 +15,7 @@ contract StakingContract {
     // Staking for records.
     struct Staking {
         bool success;
+        bool updateStake;
         uint256 stake;
         uint256 reward;
         uint256 timeStart;
@@ -35,9 +36,8 @@ contract StakingContract {
     /**
      * @dev Returns success on staking successfully.
      */
-    function stake(uint256 stake_) public returns (bool success) {
+    function stake(uint256 stake_) public {
         require(apeNFT.balanceOf(msg.sender) >= 1, "No BoredApe NFT");
-        require(token.balanceOf(msg.sender) >= stake_, "Insufficient funds");
         token.transferFrom(msg.sender, address(this), stake_);
         uint256 rewardFromDeposit = calculateReward(stake_);
         // Records the input into the struct.
@@ -51,8 +51,6 @@ contract StakingContract {
         // Update state variable for successful stake.
         s.success = true;
 
-        // return success on function call.
-        success = s.success;
         emit Deposit(msg.sender, block.timestamp, stake_);
     }
 
@@ -65,56 +63,57 @@ contract StakingContract {
         returns (uint256 reward_)
     {
         require(stake_ > 0, "Invalid stake passed.");
+        stake_ = stake_ * 1e18;
         uint256 monthlyRate = ((stake_.mul(10)).div(100));
         uint256 dailyRate = monthlyRate.div(30);
-        return dailyRate;
+        reward_ = dailyRate.div(86400);
     }
 
     /**
      * @dev Check for the time of withdrawal.
      */
-    function checkTimeForClaim() internal view returns (bool condition) {
+    function checkTimeForClaim()
+        internal
+        view
+        returns (uint256 daysSpent, bool condition)
+    {
         Staking storage s = stakings[msg.sender];
+        daysSpent = block.timestamp - s.timeStart;
         if ((block.timestamp >= s.timeDue) && (s.stake != 0)) {
-            if ((block.timestamp >= (s.timeDue + 86400)) && (s.balance != 0)) {
-                return true;
-            }
-            return true;
+            return (daysSpent, true);
         } else {
-            return false;
+            return (daysSpent, false);
         }
     }
 
     /**
      * @dev Returns success on withdrawal of tokeen having met the criteria.
      */
-    function withdrawRewardFromBalance(uint256 _amount)
-        external
-        returns (bool success_)
-    {
+    function withdrawRewardFromBalance(uint256 _amount) external {
+        (uint256 daysSpent, bool pass) = checkTimeForClaim();
         Staking storage s = stakings[msg.sender];
-
+        s.reward = s.reward * daysSpent;
         // Ensure that amount to withdraw is not more than rewards.
         require(_amount <= s.reward, "Amount exceeds reward.");
-        require(checkTimeForClaim(), "Not up to valid date.");
-
+        require(pass, "Not up to valid date.");
+        s.reward = s.reward.sub(_amount);
+        s.stake = s.balance.sub(_amount);
+        s.balance = s.stake.add(s.reward);
+        if (s.updateStake == true) {
+            s.reward = updateStake(s.stake);
+        }
         // Transfer from contract to staker.
         token.transfer(msg.sender, _amount);
-        s.reward = s.reward.sub(_amount);
-        s.balance = s.balance.sub(_amount);
-        s.reward = updateStake(s.balance);
-        s.balance = s.balance.add(s.reward);
-        s.success = true;
-        success_ = s.success;
 
         emit Withdraw(msg.sender, block.timestamp, _amount);
     }
 
     function withdrawAllInPool() external {
+        (, bool pass) = checkTimeForClaim();
         Staking storage s = stakings[msg.sender];
         // require(block.timestamp > s.timeDue, "Not up to 3 days.");
         require(s.success == true, "Not a staker.");
-        require(checkTimeForClaim(), "Not up to valid date.");
+        require(pass, "Not up to valid date.");
         token.transfer(msg.sender, s.balance);
         s.success = false;
         s.balance = 0;
@@ -126,13 +125,16 @@ contract StakingContract {
         emit Withdraw(msg.sender, block.timestamp, s.balance);
     }
 
-    function updateStake(uint256 _newStake)
-        internal
-        view
-        returns (uint256 val)
-    {
+    function allowAutoUpdateStake() external {
+        Staking storage autoUpdate = stakings[msg.sender];
+        autoUpdate.updateStake = !autoUpdate.updateStake;
+    }
+
+    function updateStake(uint256 _newStake) internal returns (uint256 val) {
         Staking storage s = stakings[msg.sender];
         _newStake = s.balance;
+        s.timeStart = block.timestamp;
+        s.timeDue = (block.timestamp).add(259200);
         uint256 newReward = calculateReward(_newStake);
         val = newReward;
     }
