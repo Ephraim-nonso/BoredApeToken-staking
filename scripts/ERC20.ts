@@ -7,26 +7,26 @@ const deployerAddress = "0xf18be8A5FcBD320fDe04843954c1c1A155b9Ae2b";
 const APECONTRACT = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
 const BoredNFTHolder = "0xbe13cdad7df8bd3c7f481b78ddb09314313c33e3";
 
-async function prank(address: string) {
-  //@ts-ignore
-  await hre.network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [address],
-  });
-}
+// async function prank(address: string) {
+//   //@ts-ignore
+//   await hre.network.provider.request({
+//     method: "hardhat_impersonateAccount",
+//     params: [address],
+//   });
+// }
 
-async function setBal(address: string) {
-  //@ts-ignore
-  await hre.network.provider.send("hardhat_setBalance", [
-    address,
-    "0x100023197410500275142",
-  ]);
-}
+// async function setBal(address: string) {
+//   //@ts-ignore
+//   await hre.network.provider.send("hardhat_setBalance", [
+//     address,
+//     "0x100023197410500275142",
+//   ]);
+// }
 
 async function ERC() {
-  const signer = await ethers.getSigner(deployerAddress);
-  await prank(deployerAddress);
-  await setBal(deployerAddress);
+  // const signer = await ethers.getSigner(deployerAddress);
+  // await prank(deployerAddress);
+  // await setBal(deployerAddress);
 
   // Deployment of token to derive contract address.
   const ERC20Token = await ethers.getContractFactory("BRT");

@@ -25,16 +25,16 @@ contract StakingContract {
     event Deposit(address owner, uint256 time, uint256 _amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
-    constructor(address _token) {
+    constructor(address _token, address _apeNFT) {
         token = IERC20(_token);
-        // apeNFT = IERC721(_apeNFT);
+        apeNFT = IERC721(_apeNFT);
     }
 
     /**
      * @dev Returns success on staking successfully.
      */
     function stake(uint256 stake_) public returns (uint256 reward) {
-        // require(apeNFT.balanceOf(msg.sender) >= 1, "No BoredApe NFT");
+        require(apeNFT.balanceOf(msg.sender) >= 1, "No BoredApe NFT");
         require(token.balanceOf(msg.sender) >= stake_, "Insufficient funds");
         token.transferFrom(msg.sender, address(this), stake_);
         // Records the input into the struct.
